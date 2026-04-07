@@ -99,8 +99,8 @@ def orders():
 # APPLICATION ENTRY POINT
 # ------------------------------------
 if __name__ == "__main__":
-    print("Starting Prometheus metrics server on port 9101...")
-    start_http_server(9101)
+    print("Starting Prometheus metrics server on port 8001...")
+    start_http_server(8001)
 
     print("Starting Order Service on port 5000...")
     app.run(host="0.0.0.0", port=5000)

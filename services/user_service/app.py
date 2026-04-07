@@ -78,8 +78,8 @@ def health():
 # APPLICATION ENTRY POINT
 # ------------------------------------
 if __name__ == "__main__":
-    print("Starting Prometheus metrics server on port 9100...")
-    start_http_server(9100)
+    print("Starting Prometheus metrics server on port 8000...")
+    start_http_server(8000)
 
     print("Starting User Service on port 5001...")
     app.run(host="0.0.0.0", port=5001)
