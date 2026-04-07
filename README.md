@@ -4,5 +4,5 @@ Production-grade Python microservices platform with observability, SLOs, and fai
 flowchart LR
     User --> OrderService
     OrderService --> UserService
-    UserService --> OrderService
-    OrderService --> Response
+    OrderService --> Prometheus
+    UserService --> Prometheus

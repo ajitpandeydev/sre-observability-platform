@@ -1,98 +1,106 @@
-# Import Flask framework to build web APIs
+# ------------------------------------
+# ORDER SERVICE - OBSERVABILITY ENABLED
+# ------------------------------------
+
 from flask import Flask, jsonify
-
-# Import random to simulate unpredictable behavior (like real systems)
 import random
-
-# Import time to simulate latency (delay in response)
 import time
-
-# Import request to call another microservice (user-service)
 import requests
 
 # ------------------------------------
 # OpenTelemetry Setup (Tracing)
 # ------------------------------------
-
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor, ConsoleSpanExporter
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
-# Create tracer provider (core tracing engine)
-trace.set_tracer_provider(TracerProvider())
+# Configure tracer provider
+provider = TracerProvider()
+trace.set_tracer_provider(provider)
 
-# Create exporter (prints traces to console for now)
-span_processor = SimpleSpanProcessor(ConsoleSpanExporter())
+# Export traces to OTEL Collector
+span_processor = SimpleSpanProcessor(OTLPSpanExporter())
+provider.add_span_processor(span_processor)
 
-# Add processor to tracer
-trace.get_tracer_provider().add_span_processor(span_processor)
-
-# Get tracer instance (used to create spans)
+# Get tracer instance
 tracer = trace.get_tracer(__name__)
 
-# Create a Flask application instance
-# __name__ tells Flask where to look for files/resources
+# ------------------------------------
+# Prometheus Metrics
+# ------------------------------------
+from prometheus_client import Counter, Histogram, start_http_server
+
+# Count total requests
+REQUEST_COUNT = Counter(
+    'order_requests_total',
+    'Total number of order requests'
+)
+
+# Measure latency
+REQUEST_LATENCY = Histogram(
+    'order_requests_latency_seconds',
+    'Latency of order requests'
+)
+
+# ------------------------------------
+# Flask App Setup
+# ------------------------------------
 app = Flask(__name__)
 
-# Automatically traces all Flask routes
+# Auto-instrument Flask
 FlaskInstrumentor().instrument_app(app)
 
-# -----------------------------------
+# Auto-instrument outgoing HTTP calls
+RequestsInstrumentor().instrument()
+
+# ------------------------------------
 # HEALTH CHECK ENDPOINT
-# -----------------------------------
-# This endpoint is used by monitoring systems to check if service is alive
+# ------------------------------------
 @app.route("/health")
 def health():
-    # Return a simple JSON response
     return {"status": "ok"}
 
 # ------------------------------------
 # ORDERS ENDPOINT
 # ------------------------------------
-# This simulate a real backend API
 @app.route("/orders")
 def orders():
-    # Create a custom trace span
-    with tracer.start_as_current_span("order-processing"):
+    REQUEST_COUNT.inc()
 
-        # Simulate  random latency between 0.1s to 1.5s
-        # In real systems, latency varies due to DB calls, network, etc.
-        delay = random.uniform(0.1, 1.5)
+    with REQUEST_LATENCY.time():
+        with tracer.start_as_current_span("order-processing"):
 
-        # Pause execution to simulate delay
-        time.sleep(delay)
+            # Simulate latency
+            delay = random.uniform(0.1, 1.5)
+            time.sleep(delay)
 
-        # Simulate failure in 20% of requests
-        # This helps test monitoring and alerting systems (SRE Concept)
-        if random.random() < 0.2:
-            return jsonify({"error": "Service failure"}), 500
-    
-        # Try calling user-service to get user data
-        try:
-            # Send HTTP GET request to user-service
-            user_response = requests.get("http://localhost:5001/users")
+            # Simulate failure (20% chance)
+            if random.random() < 0.2:
+                return jsonify({"error": "Service failure"}), 500
 
-            # Convert response JSON into Python dictionary
-            user_data = user_response.json()
+            # Call user-service
+            try:
+                user_response = requests.get("http://localhost:5001/users")
+                user_data = user_response.json()
+            except Exception:
+                user_data = {"error": "User service unavailable"}
 
-        except Exception as e:
-            # If user-service is down, handle gracefully
-            user_data = {"error": "User service unavailable"}
+            return {
+                "orders": ["item1", "item2"],
+                "users": user_data,
+                "latency": delay
+            }
 
-        # Return combined response
-        return {
-            "orders": ["item1", "item2"], # Sample order data
-            "users": user_data, # Data from another service
-            "latency": delay # Include latency for observability
-        }
-
-# -----------------------------
+# ------------------------------------
 # APPLICATION ENTRY POINT
-# -----------------------------
-# This ensures that the app runs only when executed directly
+# ------------------------------------
 if __name__ == "__main__":
-    # Run Flask server
-    # host="0.0.0.0" makes it accessible externally (important for Docker later)
-    # port=5000 defines the port for this service
+    print("Starting Prometheus metrics server on port 9101...")
+    start_http_server(9101)
+
+    print("Starting Order Service on port 5000...")
     app.run(host="0.0.0.0", port=5000)
