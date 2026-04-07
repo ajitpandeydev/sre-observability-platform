@@ -5,13 +5,13 @@ services:
     build: ./services/order_service
     ports:
       - "5000:5000"
-      - "9101:9101"
+      - "8001:8001"
 
   user-service:
     build: ./services/user_service
     ports:
       - "5001:5001"
-      - "9100:9100"
+      - "8000:8000"
 
   prometheus:
     image: prom/prometheus

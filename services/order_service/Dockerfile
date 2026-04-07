@@ -11,7 +11,7 @@ COPY . .
 RUN pip install -r requirements.txt
 
 # Expose app + metrics ports
-EXPOSE 5000 9101
+EXPOSE 5000 8001
 
 # Run app
 CMD ["python", "app.py"]
