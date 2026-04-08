@@ -10,7 +10,7 @@ API-based traffic simulation for live metrics
 Production-like architecture (service-to-service observability)
 
 ## Architecture
-![Architecture](docs/user-order-service-architecture.drawio)
+![Architecture](docs/user-order-service.architecture.png)
 
 ```mermaid
 flowchart LR
